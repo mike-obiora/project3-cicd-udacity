@@ -1,3 +1,0 @@
-URL01: https://github.com/mike-obiora/project3-cicd-udacity
-
-URL02: http://udapeople-b3e9396.s3-website-us-west-2.amazonaws.com
