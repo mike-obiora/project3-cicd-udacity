@@ -170,7 +170,6 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            # Install dependencies needed for your playbook
             apk add --update ansible
             pip install awscli
             aws --version
@@ -249,7 +248,7 @@ jobs:
             npm install
             npm run build
             tar -czvf artifact-"${CIRCLE_WORKFLOW_ID:0:7}".tar.gz dist
-            aws s3 cp dist s3://udapeoplefrontend${CIRCLE_WORKFLOW_ID:0:7} --recursive
+            aws s3 cp dist s3://udapeople-{CIRCLE_WORKFLOW_ID:0:7} --recursive
       - destroy-environment:
           workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}   
       - revert-migrations:
