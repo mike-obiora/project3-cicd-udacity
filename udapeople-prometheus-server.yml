@@ -1,0 +1,104 @@
+Description: >
+  UdaPeople Prometheus Server.
+
+Parameters:
+  ID:
+    Description: Unique identifier.
+    Type: String
+
+Resources:
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: Udapeope-prometheus
+      GroupDescription: Allow port 22, 9090,9100 and 9093
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 9090
+          ToPort: 9090
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 9100
+          ToPort: 9100
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 9093
+          ToPort: 9093
+          CidrIp: 0.0.0.0/0
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo apt-get update -y
+          sudo useradd --no-create-home prometheus
+          sudo mkdir /etc/prometheus
+          sudo mkdir /var/lib/prometheus
+          wget https://github.com/prometheus/prometheus/releases/download/v2.19.0/prometheus-2.19.0.linux-amd64.tar.gz
+          tar xvfz prometheus-2.19.0.linux-amd64.tar.gz
+          sudo cp prometheus-2.19.0.linux-amd64/prometheus /usr/local/bin
+          sudo cp prometheus-2.19.0.linux-amd64/promtool /usr/local/bin/
+          sudo cp -r prometheus-2.19.0.linux-amd64/consoles /etc/prometheus
+          sudo cp -r prometheus-2.19.0.linux-amd64/console_libraries /etc/Prometheus
+          sudo cp prometheus-2.19.0.linux-amd64/promtool /usr/local/bin/
+          rm -rf prometheus-2.19.0.linux-amd64.tar.gz prometheus-2.19.0.linux-amd64
+          sudo touch /etc/prometheus/prometheus.yml
+          sudo tee /etc/prometheus/prometheus.yml<<EOF
+          global:
+            scrape_interval: 1s
+            evaluation_interval: 1s
+
+          scrape_configs:
+            - job_name: 'node'
+              ec2_sd_configs:
+                - region: us-east-1
+                  access_key: AKIAWWSC7OI6PCVZB5LV
+                  secret_key: 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
+                  port: 9100
+          EOF
+
+          sudo touch /etc/systemd/system/prometheus.service
+          sudo tee /etc/systemd/system/prometheus.service<<EOF
+          [Unit]
+          Description=Prometheus
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          User=prometheus
+          Group=prometheus
+          Type=simple
+          ExecStart=/usr/local/bin/prometheus \
+              --config.file /etc/prometheus/prometheus.yml \
+              --storage.tsdb.path /var/lib/prometheus/ \
+              --web.console.templates=/etc/prometheus/consoles \
+              --web.console.libraries=/etc/prometheus/console_libraries
+
+          [Install]
+          WantedBy=multi-user.targets
+          EOF
+          sudo chown prometheus:prometheus /etc/prometheus
+          sudo chown prometheus:prometheus /usr/local/bin/prometheus
+          sudo chown prometheus:prometheus /usr/local/bin/promtool
+          sudo chown -R prometheus:prometheus /etc/prometheus/consoles
+          sudo chown -R prometheus:prometheus /etc/prometheus/console_libraries
+          sudo chown -R prometheus:prometheus /var/lib/prometheus
+          sudo systemctl daemon-reload
+          sudo systemctl start prometheus
+          sudo systemctl enable prometheus
+          sudo systemctl status prometheus
+
+      InstanceType: t2.micro
+      SecurityGroups:
+        - Ref: InstanceSecurityGroup
+      KeyName: udacityP3_key
+      ImageId: ami-068663a3c619dd892 
+      Tags:
+        - Key: Name
+          Value: Prometheus server
