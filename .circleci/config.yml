@@ -272,30 +272,13 @@ jobs:
           name: Install dependencies
           command: |
             apk add --update ansible
-            ansible --version
             apk add --update nodejs
-            apk add --update curl
             apk add --update npm
             apk add --update tar
             apk add --update gzip
             pip3 install awscli
-            aws --version
-      - run:
-          name: Create env file
-          command: |
-            cd backend
-            touch .env
-            echo "TYPEORM_CONNECTION=postgres" >> .env
-            echo "TYPEORM_MIGRATIONS_DIR=./src/migrations" >> .env
-            echo "TYPEORM_ENTITIES=./src/modules/domain/**/*.entity.ts" >> .env
-            echo "TYPEORM_MIGRATIONS=./src/migrations/*.ts" >> .env
-            # Use these values for the local PG database from the Docker Compose file.
-            echo "TYPEORM_HOST=${TYPEORM_HOST}"  >> .env
-            echo "TYPEORM_PORT=${TYPEORM_PORT}" >> .env
-            echo "TYPEORM_USERNAME=${TYPEORM_USERNAME}" >> .env
-            echo "TYPEORM_PASSWORD=${TYPEORM_PASSWORD}" >> .env
-            echo "TYPEORM_DATABASE=${TYPEORM_DATABASE}" >> .env
-            cat .env
+
+
       - run:
           name: Deploy backend
           command: |
@@ -324,11 +307,10 @@ jobs:
           name: Install dependencies
           command: |
             apk add --update nodejs
-            apk add --update curl
-            apk add --update npm
-            apk add --update tar
             apk add --update gzip
             pip3 install awscli
+            apk add --update npm
+            apk add --update tar
       - attach_workspace:
           at: ~/      
       - run:
@@ -399,36 +381,36 @@ jobs:
           workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
       - revert_migration:
           workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}   
-  # cleanup:
-  #   docker:
-  #     - image: amazon/aws-cli
-  #   steps:
-  #     - checkout
-  #     - run:
-  #         name: Install dependencies (tar,gzip)
-  #         command: |
-  #           yum install -y tar gzip
-  #     - attach_workspace:
-  #         at: ~/
-  #     - run:
-  #         name: Get old stack workflow id and Remove old stacks/files
-  #         command: |
-  #           export OldWorkflowID=$(cat ~/OldWorkflowID.txt)
-  #           echo OldWorkflowID: "${OldWorkflowID}"
-  #           echo CIRCLE_WORKFLOW_ID: "${CIRCLE_WORKFLOW_ID:0:7}"
-  #           # Fetch the stack names          
-  #           export STACKS=$(aws cloudformation list-stacks --query "StackSummaries[*].StackName" \
-  #           --stack-status-filter CREATE_COMPLETE --no-paginate --output text)
-  #           # echo Stack names: "${STACKS[@]}"          
-  #           if [[ "${CIRCLE_WORKFLOW_ID:0:7}" != "${OldWorkflowID}" ]]
-  #           then
-  #             echo "------Deleting Old Stacks and Files........"
-  #             aws s3 rm "s3://udapeople-${OldWorkflowID}" --recursive
-  #             aws cloudformation delete-stack --stack-name "udapeople-backend-${OldWorkflowID}"
-  #             aws cloudformation delete-stack --stack-name "udapeople-frontend-${OldWorkflowID}"
-  #           else
-  #             echo "--------------no cleanup required-------------"
-  #           fi
+  cleanup:
+    docker:
+      - image: amazon/aws-cli
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies (tar,gzip)
+          command: |
+            yum install -y tar gzip
+      - attach_workspace:
+          at: ~/
+      - run:
+          name: Get old stack workflow id and Remove old stacks/files
+          command: |
+            export OldWorkflowID=$(cat ~/OldWorkflowID.txt)
+            echo OldWorkflowID: "${OldWorkflowID}"
+            echo CIRCLE_WORKFLOW_ID: "${CIRCLE_WORKFLOW_ID:0:7}"
+            # Fetch the stack names          
+            export STACKS=$(aws cloudformation list-stacks --query "StackSummaries[*].StackName" \
+            --stack-status-filter CREATE_COMPLETE --no-paginate --output text)
+            # echo Stack names: "${STACKS[@]}"          
+            if [[ "${CIRCLE_WORKFLOW_ID:0:7}" != "${OldWorkflowID}" ]]
+            then
+              echo "------Deleting Old Stacks and Files........"
+              aws s3 rm "s3://udapeople-${OldWorkflowID}" --recursive
+              aws cloudformation delete-stack --stack-name "udapeople-backend-${OldWorkflowID}"
+              aws cloudformation delete-stack --stack-name "udapeople-frontend-${OldWorkflowID}"
+            else
+              echo "--------------no cleanup required-------------"
+            fi
 
 workflows:
   default:
@@ -460,5 +442,5 @@ workflows:
           requires: [deploy-backend, deploy-frontend] 
       - cloudfront-update:
           requires: [smoke-test]
-      # - cleanup:
-      #     requires: [cloudfront-update]   
+      - cleanup:
+          requires: [cloudfront-update]   
